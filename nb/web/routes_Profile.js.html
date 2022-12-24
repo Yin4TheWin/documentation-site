@@ -46,9 +46,85 @@ export default function Profile(){
     const [loginState, toggleLoginState] = React.useState(true)
     const [confirmPassword, setConfirmedPassword] = React.useState("")
     const [showForgotPasswordModal, toggleModal] = React.useState(false);
-    const [showEmailSentModal, toggleEmailSent] = React.useState(false);
+
+    const [showGeneralModal, toggleGeneralModal] = React.useState(false);
+    const [generalModalText, setModalText] = React.useState("")
+    const [generalModalHeader, setModalHeader] = React.useState("")
+
     const [auth] = React.useState(getAuth(firebase));
     
+/**
+ * Checks whether a password is secure: in this case, whether it is at least 8 characters long and contains at least one uppercase letter, lowercase letter and number
+ * @function checkForStrongPassword
+ * @param {string} password Password to check
+ * @returns boolean value of whether or not password is secure
+ */
+ function checkForStrongPassword(password){
+    return password.length >= 8 &amp;&amp; /[A-Z]/.test(password) &amp;&amp; /[a-z]/.test(password) &amp;&amp; /[0-9]/.test(password)
+}
+
+/**
+ * Checks whether a string is in a valid email format: s1@s2.s3, where s1, s2 and s3 are strings.
+ * @function checkForValidEmail
+ * @param {string} email Email string to check
+ * @returns boolean value of whether string is a valid email address
+ */
+function checkForValidEmail(email){
+    return email.split("@").length==2 &amp;&amp; email.split("a")[1].split(".").length==2
+}
+
+/**
+ * Handles user authentication: attempts to login with Firebase if client is in login state, otherwise tries to sign them up if password is secure.
+ * @function handleAuthentication
+ */
+function handleAuthentication(){
+    if(loginState) {
+        signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+            // Signed in 
+            const user = userCredential.user;
+            // ...
+        })
+        .catch((error) => {
+            const errorCode = error.code;
+            const errorMessage = error.message;
+            generateModal("Sign In Failed", errorMessage+"\n Error Code: "+errorCode)
+        })
+    }
+    else {
+        if(password !== confirmPassword)
+            generateModal("Passwords Don't Match!", "Please ensure \"Password\" and \"Confirm password\" fields are the same.")
+        else {
+            if(checkForStrongPassword(password)) {
+                createUserWithEmailAndPassword(auth, email, password)
+                .then((userCredential) => {
+                    // Signed in 
+                    const user = userCredential.user;
+                    // ...
+                })
+                .catch((error) => {
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    // ..
+                    generateModal("Sign In Failed", errorMessage+"\n Error Code: "+errorCode)
+                })
+            }
+            else
+                generateModal("Password Not Secure!", "Please ensure your password is at least eight characters long and contains at least one uppercase letter, one lowercase letter, and one number.")
+        }   
+    }     
+}
+/**
+ * Shows a pop up modal with a given header and body text
+ * @function generateModal
+ * @param {string} header Header text
+ * @param {string} body Body text
+ */
+function generateModal(header, body){
+    toggleGeneralModal(true)
+    setModalHeader(header)
+    setModalText(body)
+}
     return (
         &lt;div className="Profile-header">
             &lt;div className='Login-box'>
@@ -68,19 +144,23 @@ export default function Profile(){
             }
             footer={&lt;div>
                 &lt;Button color="primary" onClick={()=>{
-                    toggleEmailSent(true)
+                    if(checkForValidEmail(email)){
+                        generateModal("Check Your Inbox", "If we have your email on file, we'll send a password reset email shortly.")
+                    } else{
+                        generateModal("Invalid Email", "Please make sure the inputted email is valid.")
+                    }
                 }}>Submit&lt;/Button>{' '}
                 &lt;Button color="secondary" onClick={()=>{toggleModal(!showForgotPasswordModal)}}>Cancel&lt;/Button>
             &lt;/div>
             }/>
-            &lt;ModalPopup showModal={showEmailSentModal} toggleModal={()=>{toggleEmailSent(!showEmailSentModal)}}
-             header={"Check Your Inbox"} 
+            &lt;ModalPopup showModal={showGeneralModal} toggleModal={()=>{toggleGeneralModal(!showGeneralModal)}}
+             header={generalModalHeader} 
              body={&lt;div>
-                &lt;p>If we have your email on file, we'll send a password reset email shortly.&lt;/p>
+                &lt;p>{generalModalText}&lt;/p>
             &lt;/div>
             }
             footer={&lt;div>
-                &lt;Button color="primary" onClick={()=>{toggleEmailSent(!showEmailSentModal)}}>OK&lt;/Button>
+                &lt;Button color="primary" onClick={()=>{toggleGeneralModal(!showGeneralModal)}}>OK&lt;/Button>
             &lt;/div>
             }/>
             &lt;h1>Log In to New Beginnings&lt;/h1>
@@ -120,59 +200,6 @@ export default function Profile(){
             &lt;/div>
         &lt;/div>
     )
-}
-
-/**
- * Checks whether a password is secure: in this case, whether it is at least 8 characters long and contains at least one uppercase letter, lowercase letter and number
- * @param {string} password Password to check
- * @returns boolean value of whether or not password is secure
- */
- function checkForStrongPassword(password){
-    return password.length >= 8 &amp;&amp; /[A-Z]/.test(password) &amp;&amp; /[a-z]/.test(password) &amp;&amp; /[0-9]/.test(password)
-}
-/**
- * Handles user authentication: attempts to login with Firebase if client is in login state, otherwise tries to sign them up if password is secure.
- * @param {Auth} auth Firebase auth object
- * @param {boolean} loginState True if in loginflow, false otherwise
- * @param {string} email User inputted email
- * @param {string} password User inputted password
- * @param {string} confirmPassword User inputted "confirm password"
- */
-function handleAuthentication(auth, loginState, email, password, confirmPassword){
-    if(loginState) {
-        signInWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-            // Signed in 
-            const user = userCredential.user;
-            // ...
-        })
-        .catch((error) => {
-            const errorCode = error.code;
-            const errorMessage = error.message;
-            alert(errorCode, errorMessage)
-        })
-    }
-    else {
-        if(password !== confirmPassword)
-            alert("Passwords don't match")
-        else {
-            if(checkForStrongPassword(password)) {
-                createUserWithEmailAndPassword(auth, email, password)
-                .then((userCredential) => {
-                    // Signed in 
-                    const user = userCredential.user;
-                    // ...
-                })
-                .catch((error) => {
-                    const errorCode = error.code;
-                    const errorMessage = error.message;
-                    // ..
-                })
-            }
-            else
-                alert("Not secure")
-        }   
-    }     
 }</code></pre>
         </article>
     </section>
@@ -183,13 +210,13 @@ function handleAuthentication(auth, loginState, email, password, confirmPassword
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Profile.html">Profile</a></li><li><a href="module-ResourceTables.html">ResourceTables</a></li><li><a href="module-VideoData.html">VideoData</a></li><li><a href="module-VideoGallery.html">VideoGallery</a></li></ul><h3>Global</h3><ul><li><a href="global.html#firebase">firebase</a></li><li><a href="global.html#router">router</a></li></ul>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-Profile.html">Profile</a></li><li><a href="module-ResourceTables.html">ResourceTables</a></li><li><a href="module-VideoData.html">VideoData</a></li><li><a href="module-VideoGallery.html">VideoGallery</a></li></ul><h3>Global</h3><ul><li><a href="global.html#ModalPopup">ModalPopup</a></li><li><a href="global.html#firebase">firebase</a></li><li><a href="global.html#router">router</a></li></ul>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.0</a> on Wed Dec 07 2022 18:26:13 GMT-0500 (Eastern Standard Time)
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.0</a> on Wed Dec 07 2022 23:23:02 GMT-0500 (Eastern Standard Time)
 </footer>
 
 <script> prettyPrint(); </script>
